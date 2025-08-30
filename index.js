@@ -13,11 +13,10 @@ const allowedOrigins = [
   "https://watch.movieflims.com"
 ];
 
-// Configure CORS
+// ✅ CORS setup
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // allow curl / mobile apps
 
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -26,25 +25,38 @@ app.use(cors({
       callback(new Error("Not allowed by CORS"));
     }
   },
-  credentials: true // if you need cookies / auth headers
+  credentials: true
 }));
 
-// HTTPS redirect (for production)
+// ✅ Backend Access Key check (separate from TMDB API_KEY)
+app.use((req, res, next) => {
+  const accessKey = req.headers['x-access-key']; // custom header
+  const validKey = process.env.ACCESS_KEY || "my-backend-secret"; // set in Railway ENV
+  const origin = req.headers.origin;
+
+  if (!accessKey || accessKey !== validKey) {
+    return res.status(403).json({ error: "Forbidden: Invalid Access Key" });
+  }
+
+  if (origin && !allowedOrigins.includes(origin)) {
+    return res.status(403).json({ error: "Forbidden: Origin not allowed" });
+  }
+
+  next();
+});
+
+// ✅ HTTPS redirect (for production)
 let https_redirect = function (req, res, next) {
   if (process.env.NODE_ENV === 'production') {
     if (req.headers['x-forwarded-proto'] != 'https') {
       return res.redirect('https://' + req.headers.host + req.url);
-    } else {
-      return next();
     }
-  } else {
-    return next();
   }
+  return next();
 };
-
 app.use(https_redirect);
 
-// routes
+// ✅ Routes
 const indexRoute = require('./routes/home');
 const searchRoute = require('./routes/search');
 const singleMovieRoute = require('./routes/movie');
@@ -59,11 +71,10 @@ app.use('/movies', moviesRoute);
 app.use('/tv', singleTvShowRoute);
 app.use('/tv-shows', tvShowsRoute);
 app.use('/suggestions', suggestionsRoute);
-
 app.use('/', indexRoute);
 
+// ✅ Server listen
 app.set('port', process.env.PORT || 5000);
-
 app.listen(app.get('port'), () => {
   console.log(`✅ Server started on port ${app.get('port')}`);
 });
