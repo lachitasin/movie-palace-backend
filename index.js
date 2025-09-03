@@ -1,45 +1,21 @@
+// app.js
+require('dotenv').config(); // load .env for local dev
+
 const express = require('express');
 const cors = require('cors');
 
 const app = express();
 
-// Allowed domains
-const allowedOrigins = [
-  "https://www.movieflims.com",
-  "https://movieflims.com",
-  "https://www.streaminhub.com",
-  "https://streaminhub.com",
-  "https://watch.movieflims.co",
-  "https://watch.movieflims.com"
-];
+// ✅ CORS (allow all since you're using API directly)
+app.use(cors());
 
-// ✅ CORS setup
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow curl / mobile apps
-
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn("❌ Blocked by CORS:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true
-}));
-
-// ✅ Backend Access Key check (separate from TMDB API_KEY)
+// ✅ Backend Access Key check
 app.use((req, res, next) => {
-  const accessKey = req.headers['x-access-key']; // custom header
-  const validKey = process.env.ACCESS_KEY || "my-backend-secret"; // set in Railway ENV
-  const origin = req.headers.origin;
+  const accessKey = req.headers['x-access-key'] || req.query.ACCESS_KEY;
+  const validKey = process.env.ACCESS_KEY; // only from env
 
   if (!accessKey || accessKey !== validKey) {
     return res.status(403).json({ error: "Forbidden: Invalid Access Key" });
-  }
-
-  if (origin && !allowedOrigins.includes(origin)) {
-    return res.status(403).json({ error: "Forbidden: Origin not allowed" });
   }
 
   next();
@@ -48,7 +24,7 @@ app.use((req, res, next) => {
 // ✅ HTTPS redirect (for production)
 let https_redirect = function (req, res, next) {
   if (process.env.NODE_ENV === 'production') {
-    if (req.headers['x-forwarded-proto'] != 'https') {
+    if (req.headers['x-forwarded-proto'] !== 'https') {
       return res.redirect('https://' + req.headers.host + req.url);
     }
   }
