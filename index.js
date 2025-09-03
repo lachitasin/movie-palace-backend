@@ -3,43 +3,17 @@ const cors = require('cors');
 
 const app = express();
 
-// Allowed domains
-const allowedOrigins = [
-  "https://www.movieflims.com",
-  "https://movieflims.com",
-  "https://www.streaminhub.com",
-  "https://streaminhub.com",
-  "https://watch.movieflims.co",
-  "https://watch.movieflims.com"
-];
+// ✅ Allow all origins since this will be used as API
+app.use(cors());
 
-// ✅ CORS setup
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow curl / mobile apps
-
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn("❌ Blocked by CORS:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true
-}));
-
-// ✅ Backend Access Key check (separate from TMDB API_KEY)
+// ✅ Backend Access Key check
 app.use((req, res, next) => {
-  const accessKey = req.headers['x-access-key']; // custom header
-  const validKey = process.env.ACCESS_KEY || "my-backend-secret"; // set in Railway ENV
-  const origin = req.headers.origin;
+  // Accept key from header OR query param
+  const accessKey = req.headers['x-access-key'] || req.query.ACCESS_KEY;
+  const validKey = process.env.ACCESS_KEY || "my-very-secure-key-123"; // set in Railway ENV
 
   if (!accessKey || accessKey !== validKey) {
     return res.status(403).json({ error: "Forbidden: Invalid Access Key" });
-  }
-
-  if (origin && !allowedOrigins.includes(origin)) {
-    return res.status(403).json({ error: "Forbidden: Origin not allowed" });
   }
 
   next();
